@@ -1,4 +1,4 @@
-TARGETS = pcre.cma libpcre_stubs.a
+TARGETS = pcre2.cma libpcre2_stubs.a
 
 .PHONY: all clean
 

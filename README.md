@@ -1,21 +1,21 @@
-## PCRE-OCaml - Perl Compatibility Regular Expressions for OCaml
+## PCRE2-OCaml - Perl Compatibility Regular Expressions for OCaml
 
-This [OCaml](http://www.ocaml.org)-library interfaces the C-library
-[PCRE](http://www.pcre.org) (Perl-compatibility Regular Expressions).  It can be
+This [OCaml](https://www.ocaml.org)-library interfaces the C-library
+[PCRE2](https://www.pcre.org) (Perl-compatibility Regular Expressions).  It can be
 used for string matching with "PERL"-style regular expressions.
 
 ### Features
 
-PCRE-OCaml offers the following functionality for operating on strings:
+PCRE2-OCaml offers the following functionality for operating on strings:
 
   * Searching for patterns
   * Extracting subpatterns
   * Splitting strings according to patterns
   * Pattern substitution
 
-Other reasons to use PCRE-OCaml:
+Other reasons to use PCRE2-OCaml:
 
-  * The PCRE-library by Philip Hazel has been under development for many
+  * The PCRE2-library by Philip Hazel has been under development for many
     years and is fairly advanced and stable.  It implements just about all
     of the functionality that can be found in PERL regular expressions.
     The higher-level functions written in OCaml (split, replace, etc.),
@@ -24,7 +24,7 @@ Other reasons to use PCRE-OCaml:
     expressions more straightforward and powerful than the Emacs-style regular
     expressions used in the `Str`-module in the standard OCaml distribution.
 
-  * PCRE-OCaml is reentrant and thus thread-safe, which is not the case
+  * PCRE2-OCaml is reentrant and thus thread-safe, which is not the case
     for the `Str`-module in the OCaml standard library.  Using reentrant
     libraries also means more convenience for programmers.  They do not
     have to reason about states in which the library might be in.
@@ -54,7 +54,7 @@ allow for two different kinds of flags:
      Example:
 
      ```ocaml
-     let rex = Pcre.regexp ~flags:[`ANCHORED; `CASELESS] "some pattern" in
+     let rex = Pcre2.regexp ~flags:[`ANCHORED; `CASELESS] "some pattern" in
      (* ... *)
      ```
 
@@ -68,9 +68,9 @@ allow for two different kinds of flags:
      performance in loops.  Example:
 
      ```ocaml
-     let iflags = Pcre.cflags [`ANCHORED; `CASELESS] in
+     let iflags = Pcre2.cflags [`ANCHORED; `CASELESS] in
      for i = 1 to 1000 do
-       let rex = Pcre.regexp ~iflags "some pattern constructed at runtime" in
+       let rex = Pcre2.regexp ~iflags "some pattern constructed at runtime" in
        (* ... *)
      done
      ```
@@ -82,7 +82,7 @@ allow for two different kinds of flags:
 
       ```ocaml
       for i = 1 to 1000 do
-        let chunks = Pcre.split ~pat:"[ \t]+" "foo bar" in
+        let chunks = Pcre2.split ~pat:"[ \t]+" "foo bar" in
         (* ... *)
       done
       ```
@@ -90,17 +90,17 @@ allow for two different kinds of flags:
       Better:
 
       ```ocaml
-      let rex = Pcre.regexp "[ \t]+" in
+      let rex = Pcre2.regexp "[ \t]+" in
       for i = 1 to 1000 do
-        let chunks = Pcre.split ~rex "foo bar" in
+        let chunks = Pcre2.split ~rex "foo bar" in
         (* ... *)
       done
       ```
 
 The provided functions use optional arguments with intuitive defaults.  For
-example, the `Pcre.split`-function will assume whitespace as pattern.  The
+example, the `Pcre2.split`-function will assume whitespace as pattern.  The
 `examples`-directory contains a few example applications demonstrating the
-functionality of PCRE-OCaml.
+functionality of PCRE2-OCaml.
 
 #### Restartable (partial) pattern matching
 
