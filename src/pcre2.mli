@@ -1,5 +1,5 @@
 (*
-   PCRE-OCAML - Perl Compatibility Regular Expressions for OCaml
+   PCRE2-OCAML - Perl Compatibility Regular Expressions for OCaml
 
    Copyright (C) 1999-  Markus Mottl
    email: markus.mottl@gmail.com
@@ -26,27 +26,25 @@
 *)
 
 
-(** {6 Exceptions} *)
+(** {5 Exceptions} *)
 
 type error =
   | Partial  (** String only matched the pattern partially *)
-  | BadPartial  (** Pattern contains items that cannot be used together
-                    with partial matching. *)
   | BadPattern of string * int  (** [BadPattern (msg, pos)] regular
                                     expression is malformed.  The reason
                                     is in [msg], the position of the
                                     error in the pattern in [pos]. *)
-  | BadUTF8  (** UTF8 string being matched is invalid *)
-  | BadUTF8Offset  (** Gets raised when a UTF8 string being matched with
+  | BadUTF  (** UTF string being matched is invalid *)
+  | BadUTFOffset  (** Gets raised when a UTF string being matched with
                        offset is invalid. *)
   | MatchLimit  (** Maximum allowed number of match attempts with
                     backtracking or recursion is reached during matching.
                     ALL FUNCTIONS CALLING THE MATCHING ENGINE MAY RAISE
                     IT!!! *)
-  | RecursionLimit
-  | WorkspaceSize  (** Raised by {!pcre_dfa_exec} when the provided
+  | DepthLimit
+  | WorkspaceSize  (** Raised by {!pcre2_dfa_match} when the provided
                        workspace array is too small. See documention on
-                       {!pcre_dfa_exec} for details on workspace array
+                       {!pcre2_dfa_match} for details on workspace array
                        sizing. *)
   | InternalError of string
       (** [InternalError msg] C-library exhibits unknown/undefined
@@ -72,25 +70,43 @@ and  irflag
 
 (** Compilation flags *)
 and cflag =
-  [ `CASELESS        (** Case insensitive matching *)
-  | `MULTILINE       (** '^' and '$' match before/after newlines,
-                         not just at the beginning/end of a string *)
-  | `DOTALL          (** '.' matches all characters (newlines, too) *)
-  | `EXTENDED        (** Ignores whitespace and PERL-comments. Behaves
-                         like the '/x'-option in PERL *)
-  | `ANCHORED        (** Pattern matches only at start of string *)
-  | `DOLLAR_ENDONLY  (** '$' in pattern matches only at end of string *)
-  | `EXTRA           (** Reserved for future extensions of PCRE *)
-  | `UNGREEDY        (** Quantifiers not greedy anymore, only
-                         if followed by '?' *)
-  | `UTF8            (** Treats patterns and strings as UTF8 characters. *)
-  | `NO_UTF8_CHECK   (** Turns off validity checks on UTF8 strings for
-                         efficiency reasons. WARNING: invalid UTF8
-                         strings may cause a crash then! *)
-  | `NO_AUTO_CAPTURE (** Disables the use of numbered capturing parentheses *)
-  | `AUTO_CALLOUT    (** Automatically inserts callouts with id 255
-                         before each pattern item *)
-  | `FIRSTLINE       (** Unanchored patterns must match before/at first NL *)
+  [ `ALLOW_EMPTY_CLASS   (** Allow empty classes *)
+  | `ALT_BSUX            (** Alternative handling of \u, \U, and \x *)
+  | `ALT_CIRCUMFLEX      (** Alternative handling of ^ in multiline mode *)
+  | `ALT_VERBNAMES       (** Process backslashes in verb names *)
+  | `ANCHORED            (** Pattern matches only at start of string *)
+  | `AUTO_CALLOUT        (** Automatically inserts callouts with id 255
+                             before each pattern item *)
+  | `CASELESS            (** Case insensitive matching *)
+  | `DOLLAR_ENDONLY      (** '$' in pattern matches only at end of string *)
+  | `DOTALL              (** '.' matches all characters (newlines, too) *)
+  | `DUPNAMES            (** Allow duplicate names for subpatterns *)
+  | `ENDANCHORED         (** Pattern can match only at end of subject *)
+  | `EXTENDED            (** Ignores whitespace and PERL-comments. Behaves
+                             like the '/x'-option in PERL *)
+  | `EXTENDED_MORE
+  | `FIRSTLINE           (** Unanchored patterns must match before/at first NL *)
+  | `LITERAL             (** Pattern characters are all literal *)
+  | `MATCH_INVALID_UTF   (** Enable support for matching invalid UTF *)
+  | `MATCH_UNSET_BACKREF (** Match unset backreferences *)
+  | `MULTILINE           (** '^' and '$' match before/after newlines,
+                             not just at the beginning/end of a string *)
+  | `NEVER_BACKSLASH_C   (** Lock out the use of \C in patterns *)
+  | `NEVER_UCP           (** Lock out UCP, e.g. via (\*UCP) *)
+  | `NEVER_UTF           (** Lock out UTF, e.g. via (\*UTF) *)
+  | `NO_AUTO_CAPTURE     (** Disables the use of numbered capturing parentheses *)
+  | `NO_AUTO_POSSESS     (** Disable auto-possessification *)
+  | `NO_DOTSTAR_ANCHOR   (** Disable automatic anchoring for .* *)
+  | `NO_START_OPTIMIZE   (** Disable match-time start optimizations *)
+  | `NO_UTF_CHECK        (** Do not check the pattern for UTF validity (only
+                             relevant if UTF is set)
+                             WARNING: with this flag enabled, invalid UTF strings
+                             may cause a crash, loop, or give incorrect results *)
+  | `UCP                 (** Use Unicode properties for \d, \w, etc. *)
+  | `UNGREEDY            (** Quantifiers not greedy anymore, only
+                             if followed by '?' *)
+  | `USE_OFFSET_LIMIT    (** Enable offset limit for unanchored matching *)
+  | `UTF                 (** Treat pattern and subjects as UTF strings *)
   ]
 
 val cflags : cflag list -> icflag
@@ -103,16 +119,28 @@ val cflag_list : icflag -> cflag list
 
 (** Runtime flags *)
 type rflag =
-  [ `ANCHORED     (** Treats pattern as if it were anchored *)
-  | `NOTBOL       (** Beginning of string is not treated as beginning of line *)
-  | `NOTEOL       (** End of string is not treated as end of line *)
-  | `NOTEMPTY     (** Empty strings are not considered to be a valid match *)
-  | `PARTIAL      (** Turns on partial matching *)
-  | `DFA_RESTART  (** Causes matching to proceed presuming the subject
-                      string is further to one partially matched previously
-                      using the same int-array working set.  May only be
-                      used with {!pcre_dfa_exec} or {!unsafe_pcre_dfa_exec},
-                      and should always be paired with {!`PARTIAL}. *)
+  [
+  | `ANCHORED             (** Match only at the first position *)
+  | `COPY_MATCHED_SUBJECT (** On success, make a private subject copy *)
+  | `DFA_RESTART          (** Causes matching to proceed presuming the subject
+                              string is further to one partially matched previously
+                              using the same int-array working set.  May only be
+                              used with {!pcre2_dfa_match} or {!unsafe_pcre2_dfa_match},
+                              and should always be paired with {!`PARTIAL}. *)
+  | `DFA_SHORTEST         (** Return only the shortest match *)
+  | `ENDANCHORED          (** Pattern can match only at end of subject *)
+  | `NOTBOL               (** Beginning of string is not treated as beginning of line *)
+  | `NOTEOL               (** End of string is not treated as end of line *)
+  | `NOTEMPTY             (** An empty string is not a valid match *)
+  | `NOTEMPTY_ATSTART     (** An empty string at the start of the subject is not
+                              a valid match *)
+  | `NO_JIT               (** Do not use JIT matching *)
+  | `NO_UTF_CHECK         (** Do not check the subject for UTF validity (only
+                              relevant if PCRE2_UTF was set at compile time) *)
+  | `PARTIAL_HARD         (** Throw Pcre2.Partial for a partial match even if there
+                              is a full match *)
+  | `PARTIAL_SOFT         (** Throw Pcre2.Partial for a partial match if no full
+                              matches are found *)
   ]
 
 val rflags : rflag list -> irflag
@@ -124,13 +152,13 @@ val rflag_list : irflag -> rflag list
     runtime flags to a list. *)
 
 
-(** {6 Information on the PCRE-configuration (build-time options)} *)
+(** {6 Information on the PCRE2-configuration (build-time options)} *)
 
 (** Version information *)
-val version : string  (** Version of the PCRE-C-library *)
+val version : string  (** Version of the PCRE2-C-library *)
 
-(** Indicates whether UTF8-support is enabled *)
-val config_utf8 : bool
+(** Indicates whether unicode support is enabled *)
+val config_unicode : bool
 
 (** Character used as newline *)
 val config_newline : char
@@ -141,27 +169,20 @@ val config_link_size : int
 (** Default limit for calls to internal matching function *)
 val config_match_limit : int
 
-(** Default limit recursion for calls to internal matching function *)
-val config_match_limit_recursion : int
+(** Default limit for depth of nested backtracking *)
+val config_depth_limit : int
 
 (** Indicates use of stack recursion in matching function *)
 val config_stackrecurse : bool
 
 
-(** {6 Information on patterns} *)
+(** {3 Information on patterns} *)
 
 (** Information on matching of "first chars" in patterns *)
-type firstbyte_info =
+type firstcodeunit_info =
   [ `Char of char  (** Fixed first character *)
   | `Start_only    (** Pattern matches at beginning and end of newlines *)
   | `ANCHORED      (** Pattern is anchored *)
-  ]
-
-(** Information on the study status of patterns *)
-type study_stat =
-  [ `Not_studied (** Pattern has not yet been studied *)
-  | `Studied     (** Pattern has been studied successfully *)
-  | `Optimal     (** Pattern could not be improved by studying *)
   ]
 
 type regexp (** Compiled regular expressions *)
@@ -171,9 +192,6 @@ val options : regexp -> icflag
 
 (** [size regexp] @return memory size of [regexp]. *)
 val size : regexp -> int
-
-(** [studysize regexp] @return memory size of study information of [regexp]. *)
-val studysize : regexp -> int
 
 (** [capturecount regexp] @return number of capturing subpatterns in
     [regexp]. *)
@@ -192,19 +210,12 @@ val nameentrysize : regexp -> int
 (** [names regex] @return array of names of named substrings in [regexp]. *)
 val names : regexp -> string array
 
-(** [firstbyte regexp] @return firstbyte info on [regexp]. *)
-val firstbyte : regexp -> firstbyte_info
+(** [firstcodeunit regexp] @return firstcodeunit info on [regexp]. *)
+val firstcodeunit : regexp -> firstcodeunit_info
 
-(** [firsttable regexp] @return some 256-bit (32-byte) fixed set table in
-    form of a string for [regexp] if available, [None] otherwise. *)
-val firsttable : regexp -> string option
-
-(** [lastliteral regexp] @return some last matching character of [regexp]
+(** [lastcodeunit regexp] @return some last matching character of [regexp]
     if available, [None] otherwise. *)
-val lastliteral : regexp -> char option
-
-(** [study_stat regexp] @return study status of [regexp]. *)
-val study_stat : regexp -> study_stat
+val lastcodeunit : regexp -> char option
 
 val get_stringnumber : regexp -> string -> int
 (** [get_stringnumber rex name] @return the index of the named substring
@@ -213,13 +224,13 @@ val get_stringnumber : regexp -> string -> int
 
     @raise Invalid_arg if there is no such named substring. *)
 
-val get_match_limit : regexp -> int option
+(* val get_match_limit : regexp -> int option *)
 (** [get_match_limit rex] @return some match limit of regular expression
     [rex] or [None]. *)
 
-val get_match_limit_recursion : regexp -> int option
-(** [get_match_limit_recursion rex] @return some recursion match limit
-    of regular expression [rex] or [None]. *)
+(* val get_depth_limit : regexp -> int option *)
+(** [get_depth_limit rex] @return some depth limit of regular expression
+    [rex] or [None]. *)
 
 
 (** {6 Compilation of patterns} *)
@@ -230,27 +241,22 @@ val maketables : unit -> chtables
 (** Generates new set of char tables for the current locale. *)
 
 val regexp :
-  ?study : bool ->
-  ?jit_compile : bool ->
+  (* ?jit_compile : bool -> *)
   ?limit : int ->
-  ?limit_recursion : int ->
+  ?depth_limit : int ->
   ?iflags : icflag ->
   ?flags : cflag list ->
   ?chtables : chtables ->
   string -> regexp
-(** [regexp ?jit_compile ?study ?limit ?limit_recursion ?iflags ?flags
-    ?chtables pattern] compiles [pattern] with [flags] when given, with
-    [iflags] otherwise, and with char tables [chtables].  If [study] is true,
-    then the resulting regular expression will be studied.  If [jit_compile]
-    is true, studying will also perform JIT-compilation of the pattern.
-    [If [limit] is specified, this sets a limit to the amount of recursion
-    and backtracking (only lower than the builtin default!).  If this limit
-    is exceeded, [MatchLimit] will be raised during matching.
+(** [regexp ?limit ?depth_limit ?iflags ?flags ?chtables pattern]
+    compiles [pattern] with [flags] when given, with [iflags] otherwise,
+    and with char tables [chtables].  If [limit] is specified, this sets
+    a limit to the amount of recursion and backtracking (only lower than
+    the builtin default!).  If this limit is exceeded, [MatchLimit] will
+    be raised during matching.
 
-    @param study default = true
-    @param jit_compile default = false
     @param limit default = no extra limit other than default
-    @param limit_recursion default = no extra limit_recursion other than default
+    @param depth_limit default = no extra depth_limit other than default
     @param iflags default = no extra flags
     @param flags default = ignored
     @param chtables default = builtin char tables
@@ -258,20 +264,19 @@ val regexp :
     @return the regular expression.
 
     For detailed documentation on how you can specify PERL-style regular
-    expressions (= patterns), please consult the PCRE-documentation
-    ("man pcrepattern") or PERL-manuals.
+    expressions (= patterns), please consult the PCRE2-documentation
+    ("man pcre2pattern") or PERL-manuals.
     @see <http://www.perl.com> www.perl.com *)
 
 val regexp_or :
-  ?study : bool ->
-  ?jit_compile : bool ->
+  (* ?jit_compile : bool -> *)
   ?limit : int ->
-  ?limit_recursion : int ->
+  ?depth_limit : int ->
   ?iflags : icflag ->
   ?flags : cflag list ->
   ?chtables : chtables ->
   string list -> regexp
-(** [regexp_or ?study ?limit ?limit_recursion ?iflags ?flags ?chtables patterns]
+(** [regexp_or ?limit ?depth_limit ?iflags ?flags ?chtables patterns]
     like {!regexp}, but combines [patterns] as alternatives (or-patterns) into
     one regular expression.
 *)
@@ -380,7 +385,7 @@ type callout = callout_data -> unit
 
 (** {6 Matching of patterns and subpattern extraction} *)
 
-val pcre_exec :
+val pcre2_match :
   ?iflags : irflag ->
   ?flags : rflag list ->
   ?rex : regexp ->
@@ -388,7 +393,7 @@ val pcre_exec :
   ?pos : int ->
   ?callout : callout ->
   string -> int array
-(** [pcre_exec ?iflags ?flags ?rex ?pat ?pos ?callout subj] @return an
+(** [pcre2_match ?iflags ?flags ?rex ?pat ?pos ?callout subj] @return an
     array of offsets that describe the position of matched subpatterns in
     the string [subj] starting at position [pos] with pattern [pat] when
     given, regular expression [rex] otherwise. The array also contains
@@ -405,7 +410,7 @@ val pcre_exec :
 
     @raise Not_found if pattern does not match. *)
 
-val pcre_dfa_exec :
+val pcre2_dfa_match :
   ?iflags : irflag ->
   ?flags : rflag list ->
   ?rex : regexp ->
@@ -414,7 +419,7 @@ val pcre_dfa_exec :
   ?callout : callout ->
   ?workspace : int array ->
   string -> int array
-(** [pcre_dfa_exec ?iflags ?flags ?rex ?pat ?pos ?callout ?workspace subj]
+(** [pcre2_dfa_match ?iflags ?flags ?rex ?pat ?pos ?callout ?workspace subj]
     invokes the "alternative" DFA matching function.
 
     @return an array of offsets that describe the position of matched
@@ -425,7 +430,7 @@ val pcre_dfa_exec :
     sufficiently-large [workspace] array. Callouts are handled by [callout].
 
     Note that the returned array of offsets are quite different from those
-    returned by {!pcre_exec} et al.  The motivating use case for the DFA
+    returned by {!pcre2_match} et al.  The motivating use case for the DFA
     match function is to be able to restart a partial match with N additional
     input segments.  Because the match function/workspace does not store
     segments seen previously, the offsets returned when a match completes will
@@ -925,9 +930,9 @@ val asplit :
   ?callout : callout ->
   string -> string array
 (** [asplit ?iflags ?flags ?rex ?pat ?pos ?max ?callout subj] same as
-    {!Pcre.split} but @return an array instead of a list. *)
+    {!Pcre2.split} but @return an array instead of a list. *)
 
-(** Result of a {!Pcre.full_split} *)
+(** Result of a {!Pcre2.full_split} *)
 type split_result = Text of string        (** Text part of split string *)
                   | Delim of string       (** Delimiter part of split string *)
                   | Group of int * string (** Subgroup of matched delimiter
@@ -980,7 +985,7 @@ val foreach_file : string list -> (string -> in_channel -> unit) -> unit
 
 (** {6 {b UNSAFE STUFF - USE WITH CAUTION!}} *)
 
-val unsafe_pcre_exec :
+val unsafe_pcre2_match :
   irflag ->
   regexp ->
   pos : int ->
@@ -989,7 +994,7 @@ val unsafe_pcre_exec :
   int array ->
   callout option ->
   unit
-(** [unsafe_pcre_exec flags rex ~pos ~subj_start ~subj offset_vector callout].
+(** [unsafe_pcre2_match flags rex ~pos ~subj_start ~subj offset_vector callout].
     You should read the C-source to know what happens.
     If you do not understand it - {b don't use this function!} *)
 
@@ -997,7 +1002,7 @@ val make_ovector : regexp -> int * int array
 (** [make_ovector regexp] calculates the tuple (subgroups2, ovector)
     which is the number of subgroup offsets and the offset array. *)
 
-val unsafe_pcre_dfa_exec :
+val unsafe_pcre2_dfa_match :
   irflag ->
   regexp ->
   pos : int ->
@@ -1007,7 +1012,7 @@ val unsafe_pcre_dfa_exec :
   callout option ->
   workspace : int array ->
   unit
-(** [unsafe_pcre_dfa_exec flags rex ~pos ~subj_start ~subj offset_vector callout
+(** [unsafe_pcre2_dfa_match flags rex ~pos ~subj_start ~subj offset_vector callout
     ~workpace].
     You should read the C-source to know what happens.
     If you do not understand it - {b don't use this function!} *)
