@@ -1,5 +1,9 @@
 ## PCRE2-OCaml - Perl Compatibility Regular Expressions for OCaml
 
+Fork of the original [pcre-ocaml project](https://github.com/mmottl/pcre-ocaml) for PCRE2 support.
+
+These are the bindings as needed by the [Haxe compiler](https://github.com/HaxeFoundation/haxe). I do not plan on maintaining this repository.
+
 This [OCaml](https://www.ocaml.org)-library interfaces the C-library
 [PCRE2](https://www.pcre.org) (Perl-compatibility Regular Expressions).  It can be
 used for string matching with "PERL"-style regular expressions.
