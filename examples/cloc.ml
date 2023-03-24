@@ -1,4 +1,4 @@
-open Pcre
+open Pcre2
 
 let read_whole_channel ch =
   let size = 4096 in

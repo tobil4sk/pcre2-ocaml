@@ -1,4 +1,4 @@
-TARGETS = $(addsuffix .bc, cloc count_hash dfa_restart pcregrep subst)
+TARGETS = $(addsuffix .bc, cloc count_hash dfa_restart pcre2grep subst)
 
 .PHONY: all clean
 

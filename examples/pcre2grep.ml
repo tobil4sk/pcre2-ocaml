@@ -1,4 +1,4 @@
-open Pcre
+open Pcre2
 open Printf
 
 let filenames      = ref true
@@ -30,7 +30,7 @@ let parse_args () =
   and x = "-x", Arg.Set whole_lines,
           "Force the pattern to be anchored and to match the entire line."
   and usage =
-    "Usage: pcregrep [options] pattern [file] ...\n\n\
+    "Usage: pcre2grep [options] pattern [file] ...\n\n\
      Searches files for character patterns.\n"
   and anon_arg arg =
     if !pat = None then pat := Some arg
@@ -43,7 +43,7 @@ let parse_args () =
     let flag_list = if !ignore_case then [`CASELESS] else [] in
     if !whole_lines then `ANCHORED :: flag_list else flag_list in
 
-  let rex = 
+  let rex =
     match !pat with
     | Some pat -> regexp ~flags pat
     | None -> eprintf "%s: not enough arguments!\n" Sys.argv.(0);
@@ -56,7 +56,7 @@ let _ =
 
   let _, ovector = make_ovector rex in
 
-  let pcregrep file name =
+  let pcre2grep file name =
     let ret_code = ref 1
     and linenumber = ref 0
     and count = ref 0
@@ -72,7 +72,7 @@ let _ =
     let try_match line =
       let matched =
         try
-          unsafe_pcre_exec rfl rex ~pos:0 ~subj_start:0 ~subj:line ovector None;
+          unsafe_pcre2_match rfl rex ~pos:0 ~subj_start:0 ~subj:line ovector None;
           if !whole_lines && ovector.(1) <> String.length line then false
           else true
         with Not_found -> false in
@@ -98,7 +98,7 @@ let _ =
       !ret_code
     with Exit -> 0 in
 
-  if files = [] then exit (pcregrep stdin None);
+  if files = [] then exit (pcre2grep stdin None);
 
   if List.length files = 1 then filenames := false;
   if !filenames_only then filenames := true;
@@ -106,7 +106,7 @@ let _ =
   let collect ret_code filename =
     try
       let file = open_in filename in
-      let frc = pcregrep file (if !filenames then Some filename else None) in
+      let frc = pcre2grep file (if !filenames then Some filename else None) in
       close_in file;
       if frc = 0 && ret_code = 1 then 0 else ret_code
     with Sys_error msg -> prerr_endline msg; 2 in

@@ -10,7 +10,7 @@ comments and empty lines removed.  Useful for counting LOCs.
 This program reads text from stdin, counts all equal words that are separated by
 whitespace and prints the result to stdout.
 
-### pcregrep
+### pcre2grep
 
 A grep-like program using Perl-compatible regular expressions.  Start the
 program with argument `-help` to see what it does!

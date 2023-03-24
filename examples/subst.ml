@@ -1,4 +1,4 @@
-open Pcre
+open Pcre2
 
 let parse_args () =
   let quick       = ref false

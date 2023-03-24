@@ -1,4 +1,4 @@
-open Pcre
+open Pcre2
 open Printf
 
 let show_array arr =
@@ -18,19 +18,19 @@ let () =
     end
   in
   let rex = regexp pat in
-  let rec find_match flags workspace = 
+  let rec find_match flags workspace =
     print_string "> ";
     let line, eof = try read_line (), false with End_of_file -> "", true in
-    match pcre_dfa_exec ~rex ~flags ~workspace line with
+    match pcre2_dfa_match ~rex ~flags ~workspace line with
     | res ->
         printf "match completed: %S\n" (show_array res);
         if not eof then begin
           printf "\n *input & workspace reset*\n";
-          find_match [`PARTIAL] (new_workspace ()) 
+          find_match [`PARTIAL_SOFT] (new_workspace ())
         end
     | exception (Error Partial) ->
         printf "partial match, provide more input:\n";
-        find_match [`DFA_RESTART; `PARTIAL] workspace
+        find_match [`DFA_RESTART; `PARTIAL_SOFT] workspace
     | exception exn ->
         begin match exn with
         | Not_found -> eprintf "pattern match failed\n"
@@ -40,4 +40,4 @@ let () =
         end;
         exit 1
   in
-  find_match [`PARTIAL] (new_workspace ())
+  find_match [`PARTIAL_SOFT] (new_workspace ())
