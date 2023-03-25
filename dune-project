@@ -21,6 +21,5 @@ substitution, similar to the functionality offered by the Perl language.")
     (ocaml (>= 4.12))
     dune-configurator
     (conf-libpcre2-8 :build)
-    base-bytes
   )
 )
